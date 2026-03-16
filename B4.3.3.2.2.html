@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AssignmentX Math Game</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        :root {
+            --glass-bg: rgba(10, 25, 47, 0.98);
+            --glass-border: rgba(0, 210, 255, 0.4); 
+            --mathly-yellow: #f1c40f;
+            --mathly-blue: #00d2ff; 
+            --mathly-red: #ff4757;
+            --mathly-green: #2ecc71;
+            --text-main: #ccd6f6;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: #0a192f; 
+            min-height: 100vh; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            color: var(--text-main); 
+            overflow: hidden; 
+            position: relative;
+        }
+
+        /* Template Feature: Mathematical Background Canvas */
+        #bg-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+
+        .screen { 
+            display: none; 
+            width: 95%; 
+            max-width: 500px; 
+            max-height: 95vh;
+            background: var(--glass-bg); 
+            backdrop-filter: blur(25px); 
+            border: 1px solid var(--glass-border); 
+            border-radius: 30px; 
+            padding: 30px; 
+            text-align: center; 
+            z-index: 2; 
+            position: relative; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6); 
+            overflow-y: auto;
+        }
+        
+        .active { display: block; animation: zoomIn 0.3s ease-out; }
+        @keyframes zoomIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+
+        .internal-header { margin-bottom: 20px; border-bottom: 1px solid rgba(0, 210, 255, 0.1); padding-bottom: 15px; }
+        .header-main { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+        .game-logo { width: 90px; height: 90px; object-fit: contain; filter: drop-shadow(0 0 5px var(--mathly-blue)); }
+        .internal-header h1 { color: var(--mathly-yellow); font-size: 1.4rem; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; margin: 0; }
+        .internal-header .subtitle { font-size: 0.7rem; color: #8892b0; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px; display: block; }
+        
+        .btn-main { width: 100%; padding: 16px; border: none; border-radius: 15px; font-weight: 800; cursor: pointer; text-transform: uppercase; margin-top: 10px; transition: 0.2s; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-proceed { background: var(--mathly-blue); color: #0a192f; }
+        .btn-mode { background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: white; }
+        .btn-back { background: rgba(255, 71, 87, 0.1); border: 1px solid var(--mathly-red); color: var(--mathly-red); }
+
+        .settings-bar { display: flex; justify-content: center; gap: 8px; margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); flex-wrap: wrap; }
+        .btn-setting { background: none; border: 1px solid rgba(255,255,255,0.1); color: #8892b0; padding: 8px 12px; border-radius: 8px; font-size: 0.65rem; font-weight: 700; cursor: pointer; text-transform: uppercase; transition: 0.2s; }
+        
+        /* Template Feature: Visual Scaffold Area */
+        .visual-scaffold { margin: 20px 0; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 180px; position: relative; }
+        .object-display { font-size: 5rem; margin-bottom: 10px; filter: drop-shadow(0 0 10px var(--mathly-blue)); }
+        .object-name { font-size: 1.6rem; font-weight: 900; color: white; text-transform: uppercase; }
+
+        .unit-selection { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0; }
+        .unit-card { 
+            background: rgba(255,255,255,0.05); 
+            border: 2px solid var(--glass-border); 
+            padding: 15px; 
+            border-radius: 20px; 
+            cursor: pointer; 
+            transition: 0.3s;
+        }
+        .unit-card.selected { border-color: var(--mathly-yellow); background: rgba(241, 196, 15, 0.1); }
+        .unit-card h2 { font-size: 1.8rem; color: var(--mathly-yellow); }
+
+        .timer-container { width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 10px; margin-bottom: 15px; overflow: hidden; }
+        #timer-bar { width: 100%; height: 100%; background: var(--mathly-red); transition: width 1s linear; }
+
+        .lvl-dot { width: 45px; height: 45px; border-radius: 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: center; font-weight: 900; cursor: pointer; }
+        .lvl-dot.active-lvl { border-color: var(--mathly-yellow); color: var(--mathly-yellow); box-shadow: 0 0 15px var(--mathly-yellow); }
+        .lvl-dot.locked { opacity: 0.2; cursor: not-allowed; }
+
+        .modal { display: none; position: fixed; inset: 0; background: rgba(2, 12, 27, 0.98); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: var(--glass-bg); padding: 30px; border-radius: 30px; border: 1px solid var(--mathly-blue); width: 90%; max-width: 420px; text-align: left; }
+    </style>
+</head>
+<body>
+
+    <canvas id="bg-canvas"></canvas>
+
+    <div id="screen-welcome" class="screen active">
+        <div class="internal-header">
+            <div class="header-main">
+                <img src="logo.png" alt="Logo" class="game-logo">
+                <h1>Assignmentx Geometry and Measurement: Measurement- (Perimeter and Area)</h1>
+                <span class="subtitle">B4.3.3.2.2: Select and justify referents for the units cm2 or m2</span>
+            </div>
+        </div>
+        <div style="font-size: 1rem; color: var(--mathly-blue); margin-bottom: 20px; font-weight: 700;">SELECT THE BEST UNIT</div>
+        <button class="btn-main btn-proceed" onclick="startGameDirectly()">START MISSION</button>
+        <button class="btn-main btn-mode" onclick="toggleModal(true)">📜 MISSION RULES</button>
+        <div class="settings-bar">
+            <button class="btn-setting btn-mute" onclick="toggleAudio()">🔊 SFX: ON</button>
+            <button class="btn-setting" style="color:var(--mathly-red)" onclick="clearProgress()">🗑 RESET</button>
+        </div>
+    </div>
+
+    <div id="screen-game" class="screen">
+        <div class="internal-header">
+            <div class="header-main">
+                <h1 id="lvl-title">Mission Lvl 1</h1>
+                <span class="subtitle" id="pattern-desc">Referent Scouting</span>
+            </div>
+        </div>
+        
+        <div class="timer-container"><div id="timer-bar"></div></div>
+        
+        <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 800; margin-bottom: 5px;">
+            <div style="color: var(--mathly-blue);">SYNC: <span id="score">0</span></div>
+            <div style="color: var(--mathly-yellow);">MISSION: <span id="q-count">1</span>/10</div>
+            <div style="color: var(--mathly-red);">⏳ <span id="timer-text">20</span>s</div>
+        </div>
+
+        <div id="feedback-banner" style="height:25px; font-weight:900;"></div>
+
+        <div class="visual-scaffold">
+            <div id="obj-emoji" class="object-display">?</div>
+            <div id="obj-name" class="object-name">LOADING...</div>
+        </div>
+
+        <div id="hint-text" style="color:var(--mathly-yellow); font-weight:800; margin-bottom:10px; height:20px; font-size:0.7rem;"></div>
+        
+        <div class="unit-selection">
+            <div class="unit-card" id="card-cm2" onclick="selectUnit('cm2')">
+                <h2>cm²</h2>
+                <p style="font-size:0.6rem">Small Objects</p>
+            </div>
+            <div class="unit-card" id="card-m2" onclick="selectUnit('m2')">
+                <h2>m²</h2>
+                <p style="font-size:0.6rem">Large Areas</p>
+            </div>
+        </div>
+
+        <button class="btn-main btn-proceed" id="submitBtn" style="display:none">SUBMIT SCAN</button>
+        <button class="btn-main btn-proceed" id="startBtn">READY PILOT?</button>
+        
+        <div class="level-map" style="display:flex; justify-content:center; gap:10px; margin-top:10px;">
+            <div class="lvl-dot" id="dot-1" onclick="selectLevel(1)">1</div>
+            <div class="lvl-dot locked" id="dot-2" onclick="selectLevel(2)">🔒</div>
+            <div class="lvl-dot locked" id="dot-3" onclick="selectLevel(3)">🔒</div>
+        </div>
+
+        <div class="settings-bar">
+            <button class="btn-setting btn-back" onclick="location.reload()">🚪 EXIT</button>
+            <button class="btn-setting" style="color:var(--mathly-yellow)" onclick="getHint()">💡 HINT</button>
+        </div>
+    </div>
+
+    <div id="screen-summary" class="screen">
+        <div class="internal-header">
+            <div class="header-main">
+                <h1>Mission Debrief</h1>
+                <span class="subtitle">Spatial Data Acquisition</span>
+            </div>
+        </div>
+        <div class="summary-status" id="summary-status">MISSION SUCCESS</div>
+        <div class="summary-score" id="final-score-val">0</div>
+        <p id="summary-msg" style="margin-bottom: 25px; font-size: 0.9rem; color: #8892b0;">Synchronization complete.</p>
+        <button class="btn-main btn-proceed" onclick="location.reload()">RETURN TO BASE</button>
+    </div>
+
+    <div id="rules-modal" class="modal">
+        <div class="modal-content">
+            <h2 style="color:var(--mathly-yellow); margin-bottom:15px; text-transform:uppercase;">Curriculum Protocols</h2>
+            <ul style="list-style:none; font-size:0.85rem; line-height:1.6; color:var(--text-main); margin-bottom:20px;">
+                <li>📏 <b style="color:var(--mathly-blue)">cm²:</b> Use for objects smaller than a desk.</li>
+                <li>🏫 <b style="color:var(--mathly-green)">m²:</b> Use for rooms, fields, and large floors.</li>
+                <li>🔓 <b style="color:var(--mathly-red)">LEVELS:</b> Score 60+ to unlock harder scouting sectors.</li>
+            </ul>
+            <button class="btn-main btn-proceed" onclick="toggleModal(false)">I UNDERSTAND</button>
+        </div>
+    </div>
+
+    <script>
+        // Template Feature: Restored Background Animation Logic
+        const bgCanvas = document.getElementById('bg-canvas'); const bgCtx = bgCanvas.getContext('2d');
+        let symbols = [];
+        const MATH_PALETTE = ['#f1c40f', '#00d2ff', '#ff4757', '#2ecc71'];
+        const MATH_CHARS = ['cm²', 'm²', 'A=L×W', '📐', '📏', '□'];
+
+        function initBG() {
+            bgCanvas.width = window.innerWidth; bgCanvas.height = window.innerHeight;
+            symbols = Array.from({length: 30}, () => ({
+                x: Math.random() * bgCanvas.width, y: Math.random() * bgCanvas.height,
+                char: MATH_CHARS[Math.floor(Math.random() * MATH_CHARS.length)],
+                color: MATH_PALETTE[Math.floor(Math.random() * MATH_PALETTE.length)],
+                size: Math.floor(Math.random() * 40) + 50, 
+                speed: 0.3 + Math.random() * 0.7,
+                rotation: Math.random() * 6, rotSpeed: (Math.random() - 0.5) * 0.01
+            }));
+        }
+
+        function drawBG() {
+            bgCtx.clearRect(0,0,bgCanvas.width,bgCanvas.height);
+            symbols.forEach(s => { 
+                bgCtx.save(); bgCtx.translate(s.x, s.y); bgCtx.rotate(s.rotation);
+                bgCtx.fillStyle = s.color; bgCtx.globalAlpha = 0.1;
+                bgCtx.font = `900 ${s.size}px Inter`; bgCtx.textAlign = "center";
+                bgCtx.fillText(s.char, 0, 0); bgCtx.restore();
+                s.y -= s.speed; s.rotation += s.rotSpeed;
+                if(s.y < -100) s.y = bgCanvas.height + 100;
+            });
+            requestAnimationFrame(drawBG);
+        }
+        window.addEventListener('resize', initBG); initBG(); drawBG();
+
+        // Audio System
+        const audioFiles = {
+            bg: new Audio("BGMSound.mp3"),
+            correct: new Audio("correctanswer.mp3"),
+            wrong: new Audio("wronganswer.mp3")
+        };
+        audioFiles.bg.loop = true; audioFiles.bg.volume = 0.2;
+        let isMuted = false;
+
+        function toggleAudio() {
+            isMuted = !isMuted;
+            document.querySelectorAll('.btn-mute').forEach(b => b.innerText = isMuted ? "🔇 SFX: OFF" : "🔊 SFX: ON");
+            if (isMuted) audioFiles.bg.pause(); else audioFiles.bg.play().catch(()=>{});
+        }
+
+        // Game Logic Restored to Template Workflow
+        const database = [
+            {n:"Stamp", e:"🏷️", u:"cm2", l:1, h:"Smaller than a finger."},
+            {n:"Classroom", e:"🏫", u:"m2", l:1, h:"Many people fit inside."},
+            {n:"Exercise Book", e:"📓", u:"cm2", l:1, h:"Fits in your hand."},
+            {n:"Playground", e:"⚽", u:"m2", l:2, h:"Large outdoor area."},
+            {n:"Eraser", e:"🧽", u:"cm2", l:1, h:"Tiny desk tool."},
+            {n:"Garden", e:"🌳", u:"m2", l:2, h:"Measured in big steps."},
+            {n:"Phone", e:"📱", u:"cm2", l:2, h:"Handheld device."},
+            {n:"Car Park", e:"🚗", u:"m2", l:3, h:"Holds several vehicles."}
+        ];
+
+        let gameData = JSON.parse(localStorage.getItem('ax_area_b4')) || { unlockedLevels: [1] };
+        let game = { active: false, score: 0, currentLvl: 1, questionsLeft: 10, currentObj: null, selectedUnit: null, timer: null };
+
+        function saveGame() { localStorage.setItem('ax_area_b4', JSON.stringify(gameData)); }
+        function clearProgress() { if(confirm("Reset mission history?")) { localStorage.removeItem('ax_area_b4'); location.reload(); } }
+        function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); if(id === 'screen-game') updateMap(); }
+
+        function startGameDirectly() { if(!isMuted) audioFiles.bg.play().catch(()=>{}); showScreen('screen-game'); }
+
+        function updateMap() {
+            for(let i=1; i<=3; i++){
+                const dot = document.getElementById(`dot-${i}`); const unlocked = gameData.unlockedLevels.includes(i);
+                dot.className = unlocked ? 'lvl-dot' : 'lvl-dot locked'; dot.innerText = unlocked ? i : '🔒';
+                if(game.currentLvl === i) dot.classList.add('active-lvl');
+            }
+            const desc = ["Simple Referents", "Intermediate Scale", "Mastery Mix"];
+            document.getElementById('pattern-desc').innerText = desc[game.currentLvl-1];
+            document.getElementById('lvl-title').innerText = "Mission Lvl " + game.currentLvl;
+        }
+
+        function generateProblem() {
+            document.getElementById('feedback-banner').innerText = "";
+            const pool = database.filter(i => i.l <= game.currentLvl);
+            game.currentObj = pool[Math.floor(Math.random()*pool.length)];
+            game.selectedUnit = null;
+            
+            document.querySelectorAll('.unit-card').forEach(c => c.classList.remove('selected'));
+            document.getElementById('obj-emoji').innerText = game.currentObj.e;
+            document.getElementById('obj-name').innerText = game.currentObj.n;
+            document.getElementById('q-count').innerText = 11 - game.questionsLeft;
+            document.getElementById('hint-text').innerText = "";
+            resetTimer();
+        }
+
+        function selectUnit(u) {
+            game.selectedUnit = u;
+            document.querySelectorAll('.unit-card').forEach(c => c.classList.remove('selected'));
+            document.getElementById('card-' + u).classList.add('selected');
+        }
+
+        function handleFeedback(isCorr) {
+            clearInterval(game.timer);
+            const banner = document.getElementById('feedback-banner');
+            if(isCorr) {
+                game.score += 10;
+                banner.innerText = "✓ SCAN SUCCESSFUL! +10";
+                banner.style.color = "var(--mathly-green)";
+                if(!isMuted) audioFiles.correct.play().catch(()=>{});
+            } else {
+                banner.innerText = "✗ SCAN ERROR: SHOULD BE " + (game.currentObj.u === 'cm2' ? 'cm²' : 'm²');
+                banner.style.color = "var(--mathly-red)";
+                if(!isMuted) audioFiles.wrong.play().catch(()=>{});
+            }
+            document.getElementById('score').innerText = game.score;
+            game.questionsLeft--;
+            setTimeout(() => {
+                if(game.questionsLeft > 0) generateProblem();
+                else endMission();
+            }, 1800);
+        }
+
+        function resetTimer() {
+            clearInterval(game.timer); let t = 20;
+            game.timer = setInterval(() => { 
+                t--; 
+                document.getElementById('timer-text').innerText = t; 
+                document.getElementById('timer-bar').style.width = (t/20)*100 + "%"; 
+                if(t <= 0) handleFeedback(false); 
+            }, 1000);
+        }
+
+        function getHint() { document.getElementById('hint-text').innerText = "HINT: " + game.currentObj.h; }
+
+        function endMission() {
+            game.active = false;
+            clearInterval(game.timer);
+            const unlockHappened = (game.score >= 60 && game.currentLvl < 3 && !gameData.unlockedLevels.includes(game.currentLvl + 1));
+            if(unlockHappened) { gameData.unlockedLevels.push(game.currentLvl + 1); saveGame(); }
+            document.getElementById('final-score-val').innerText = game.score;
+            showScreen('screen-summary');
+        }
+
+        document.getElementById('startBtn').onclick = () => {
+            game.active = true;
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('submitBtn').style.display = 'block';
+            generateProblem();
+        };
+
+        document.getElementById('submitBtn').onclick = () => { 
+            if(game.selectedUnit) handleFeedback(game.selectedUnit === game.currentObj.u);
+        };
+
+        function selectLevel(l) { if(gameData.unlockedLevels.includes(l)) { game.currentLvl = l; updateMap(); } }
+        function toggleModal(s) { document.getElementById('rules-modal').style.display = s ? 'flex' : 'none'; }
+    </script>
+</body>
+</html>
